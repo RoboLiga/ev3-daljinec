@@ -17,11 +17,15 @@ import os
 import sys
 import ev3_dc as ev3
 from thread_task import Sleep, Task
+import requests
+import json
+
+SERVER_URL = 'http://192.168.0.3:8088/game/9125'
 
 # Maximum frames per second
 FPS = 30
 # ID of a EV3 robot to use when no arguments are given
-ROBOT_ID_DEFAULT = 'R1'
+ROBOT_ID_DEFAULT = 'RED'
 
 # Using medium motor?
 USE_MEDIUM_MOTOR = False
@@ -36,6 +40,8 @@ id2MAC = {
     'R1':  '00:16:53:40:A2:BD',
     'R2':  '00:16:53:41:44:AC',
     'R13': '00:16:53:46:B6:A1',
+    'RED': '00:16:53:46:C4:03',
+    'BLUE': '00:16:53:46:8F:57',
 }
 
 # Movement constants
@@ -220,89 +226,101 @@ is_ctrl = False
 is_quit = False
 
 c = pygame.time.Clock()
+headers = {'Accept': 'application/json'}
+
+d = {'RED': '25', 'BLUE': '27'}
+robot_name = d[robot_id]
 
 try:
     while True:
+        r = requests.get(SERVER_URL, headers=headers)
+        game_state = json.loads(r.content)
+
+        fuel = game_state['teams'][robot_name]
+        game_on = game_state['game_on']
+        print(fuel)
+        
+
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
                 exit_app()
+            if fuel > 0 and game_on:
+                if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                    keys = pygame.key.get_pressed()
+                    is_up = keys[pygame.K_UP]
+                    is_down = keys[pygame.K_DOWN]
+                    is_left = keys[pygame.K_LEFT]
+                    is_right = keys[pygame.K_RIGHT]
+                    is_space = keys[pygame.K_SPACE]
+                    is_ctrl = keys[pygame.K_RETURN]
+                    is_quit = keys[pygame.K_q]
 
-            if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
-                keys = pygame.key.get_pressed()
-                is_up = keys[pygame.K_UP]
-                is_down = keys[pygame.K_DOWN]
-                is_left = keys[pygame.K_LEFT]
-                is_right = keys[pygame.K_RIGHT]
-                is_space = keys[pygame.K_SPACE]
-                is_ctrl = keys[pygame.K_RETURN]
-                is_quit = keys[pygame.K_q]
+                    speed_left = 0
+                    speed_right = 0
+                    dir_left = 0
+                    dir_right = 0
 
-                speed_left = 0
-                speed_right = 0
-                dir_left = 0
-                dir_right = 0
-
-                # Quit
-                if is_quit:
-                    exit_app()
-                
-                # Horn
-                if is_space:                    
-                    beep()
-
-                # Claws
-                if is_ctrl:
-                    if USE_MEDIUM_MOTOR:
-                        if is_claws_open:
-                            claws_close()
-                            is_claws_open = False
-                        else:
-                            claws_open()
-                            is_claws_open = True
-
-                # Forward
-                if is_up:
-                    speed_left = SPEED_MAX
-                    dir_left = 1
-                    speed_right = SPEED_MAX
-                    dir_right = 1
-
-                if is_up and is_left:
-                    speed_left = SPEED_MAX - TURN_SOFT
-                if is_up and is_right:
-                    speed_right = SPEED_MAX - TURN_SOFT
-
-                # Rotate on place
-                if not is_up and not is_down and is_left:
-                    speed_left = SPEED_HALF
-                    dir_left = -1
-                    speed_right = SPEED_HALF
-                    dir_right = 1
+                    # Quit
+                    if is_quit:
+                        exit_app()
                     
-                if not is_up and not is_down and is_right:
-                    speed_left = SPEED_HALF
-                    dir_left = 1
-                    speed_right = SPEED_HALF
-                    dir_right = -1
-                
-                # Backward
-                if is_down:
-                    speed_left = SPEED_MAX
-                    dir_left = -1
-                    speed_right = SPEED_MAX
-                    dir_right = -1
-                if is_down and is_left:
-                    speed_left = SPEED_MAX - TURN_SOFT
-                if is_down and is_right:
-                    speed_right = SPEED_MAX - TURN_SOFT
-                
-                if speed_left == 0 and speed_right == 0:
-                    motorLeft.stop(brake=False)
-                    motorRight.stop(brake=False)
-                else:
-                    motorLeft.start_move(speed=speed_left, direction=dir_left, ramp_up_time=0.5)
-                    motorRight.start_move(speed=speed_right, direction=dir_right, ramp_up_time=0.5)
-                    #print(speed_left, dir_left, speed_right, dir_right)
+                    # Horn
+                    if is_space:                    
+                        beep()
+
+                    # Claws
+                    if is_ctrl:
+                        if USE_MEDIUM_MOTOR:
+                            if is_claws_open:
+                                claws_close()
+                                is_claws_open = False
+                            else:
+                                claws_open()
+                                is_claws_open = True
+
+                    # Forward
+                    if is_up:
+                        speed_left = SPEED_MAX
+                        dir_left = 1
+                        speed_right = SPEED_MAX
+                        dir_right = 1
+
+                    if is_up and is_left:
+                        speed_left = SPEED_MAX - TURN_SOFT
+                    if is_up and is_right:
+                        speed_right = SPEED_MAX - TURN_SOFT
+
+                    # Rotate on place
+                    if not is_up and not is_down and is_left:
+                        speed_left = SPEED_HALF
+                        dir_left = -1
+                        speed_right = SPEED_HALF
+                        dir_right = 1
+                        
+                    if not is_up and not is_down and is_right:
+                        speed_left = SPEED_HALF
+                        dir_left = 1
+                        speed_right = SPEED_HALF
+                        dir_right = -1
+                    
+                    # Backward
+                    if is_down:
+                        speed_left = SPEED_MAX
+                        dir_left = -1
+                        speed_right = SPEED_MAX
+                        dir_right = -1
+                    if is_down and is_left:
+                        speed_left = SPEED_MAX - TURN_SOFT
+                    if is_down and is_right:
+                        speed_right = SPEED_MAX - TURN_SOFT
+                    
+                    if speed_left == 0 and speed_right == 0:
+                        motorLeft.stop(brake=False)
+                        motorRight.stop(brake=False)
+                    else:
+                        motorLeft.start_move(speed=speed_left, direction=dir_left, ramp_up_time=0.5)
+                        motorRight.start_move(speed=speed_right, direction=dir_right, ramp_up_time=0.5)
+                        #print(speed_left, dir_left, speed_right, dir_right)
 
         # Update screen
         screen.fill((255, 255, 255))
