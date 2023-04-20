@@ -245,6 +245,7 @@ try:
             if event.type==pygame.QUIT:
                 exit_app()
             if fuel > 0 and game_on:
+                #FIXME: Ko pogoj ni izpolnjen, je potrebno ustaviti motorje.
                 if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
                     keys = pygame.key.get_pressed()
                     is_up = keys[pygame.K_UP]
